@@ -1,0 +1,13 @@
+node_modules/
+sdk/node_modules/
+sdk/node_modules/.bin/
+lambda/lists/node_modules/
+lambda/lists/node_modules/.bin/
+lambda/remove/node_modules/
+lambda/remove/node_modules/.bin/
+lambda/csv/node_modules/
+lambda/csv/node_modules/.bin/
+lambda/data/node_modules/
+lambda/data/node_modules/.bin/
+lambda/add/node_modules/
+lambda/add/node_modules/.bin/

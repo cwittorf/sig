@@ -1,0 +1,330 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="https://d1aw3fewcx9w7u.cloudfront.net/25/stylesheets/uikit.min.css" />
+        <link rel="stylesheet" href="https://d1aw3fewcx9w7u.cloudfront.net/25/stylesheets/jquery-ui.min.css" />
+        <link rel='stylesheet' href='https://d1aw3fewcx9w7u.cloudfront.net/25/stylesheets/fullcalendar.min.css' />
+        <script src="https://d1aw3fewcx9w7u.cloudfront.net/25/javascripts/jquery-2.2.3.min.js"></script>
+        <script src="https://d1aw3fewcx9w7u.cloudfront.net/25/javascripts/uikit.min.js"></script>
+        <script src="https://d1aw3fewcx9w7u.cloudfront.net/25/javascripts/jquery-ui.min.js"></script>
+        <script src='https://d1aw3fewcx9w7u.cloudfront.net/25/javascripts/moment.js'></script>
+        <script src='https://d1aw3fewcx9w7u.cloudfront.net/25/javascripts/fullcalendar.min.js'></script>
+        <script>
+            $(document).ready(function() {
+
+                function unregister() {
+                    $("#submit").unbind();
+                    $("#delete").unbind();
+                    $('#dialog').dialog('close');
+                }
+
+                function shiftDialog(calEvent) {
+                    $("#dialog").dialog({
+                        autoOpen: false,
+                        close: function( event, ui ) {
+                            unregister();
+                        }
+                    })
+
+                    if(calEvent !== undefined) {
+                        $("#title").val(calEvent.venue);
+                        $("#role").val(calEvent.role);
+                        $("#desc").val(calEvent.description);
+                        $("#day").val(calEvent.start.format("MMM D, YYYY"));
+                        $("#start").val(calEvent.start.format("HH:mm:ss"));
+                        $("#end").val(calEvent.end.format("HH:mm:ss"));
+                        $("#sv").val(calEvent.svs);
+                        $("#chair").val(calEvent.chair);
+                        $("#special").prop("checked", calEvent.special == 1 );
+                        $("#notified").prop("checked", calEvent.notified == 1 );
+                        $("#verified").prop("checked", calEvent.verified == 1 );
+                        $("#delete").show();
+                    } else {
+                        $("#delete").hide();
+                    }
+
+                    $("#day").datepicker({
+                        dateFormat: "M d, yy",
+                        minDate: new Date(2016, 6, 22),
+                        maxDate: new Date(2016, 6, 27)
+                    });
+
+                    $("#submit").on({
+                        click: function(e) {
+                            e.preventDefault();
+                            $.post("https://x985oqs018.execute-api.us-east-1.amazonaws.com/dev/add", {
+                                id: calEvent === undefined ? null: calEvent.id,
+                                role: $("#role").val(),
+                                VENUE: $("#title").val(),
+                                DESCRIPTION: $("#desc").val(),
+                                START: $("#start").val(),
+                                END: $("#end").val(),
+                                SVs: $("#sv").val(),
+                                chair: $("#chair").val(),
+                                DATE: moment($("#day").val(), "MMM D, YYYY").format("YYYY-MM-DD"),
+                                special: $("#special").prop("checked") ? 1 : 0,
+                                notified: $("#notified").prop("checked") ? 1 : 0,
+                                verified: $("#verified").prop("checked") ? 1 : 0
+                            }, function(data){
+                                $("#calendar").fullCalendar('refetchEvents');
+                                unregister();
+                            });
+                        }
+                    });
+
+                    $("#delete").on({
+                        click: function(e) {
+                            e.preventDefault();
+                            $.post("https://x985oqs018.execute-api.us-east-1.amazonaws.com/dev/remove", {
+                                id: calEvent.id
+                            }, function(data){
+                                $("#calendar").fullCalendar('refetchEvents');
+                                unregister();
+                            });
+
+                        }
+                    });
+
+                    $('#dialog').dialog('open');
+                }
+
+                $("#newShift").on({
+                    click: function(e) {
+                        shiftDialog();
+                    }
+                });
+
+                function cascade(e) {
+                    var val = $(e.currentTarget).find('a').text();
+
+                    switch( $(e.currentTarget).parent().attr('id')  ) {
+                        case "venuelist":
+                            $("#desclist").prop("disabled", true).empty();
+                            $("#rolelist").prop("disabled", true).empty();
+
+                            currentData.venue = val;
+                            currentData.desc = "";
+                            currentData.role = "";
+
+                            popLists("desclist", venues[currentData.venue]);
+                            break;
+                        case "desclist":
+                            $("#rolelist").prop("disabled", true).empty();
+                            currentData.desc = val;
+                            currentData.role = "";
+                            popLists("rolelist", venues[currentData.venue][currentData.desc]);
+                            break;
+                        case "rolelist":
+                            currentData.role = val;
+                            break;
+                    }
+
+                    $("#calendar").fullCalendar('refetchEvents');
+                }
+
+                $.fn.serializeFormJSON = function () {
+
+                    var o = {};
+                    var a = this.serializeArray();
+                    $.each(a, function () {
+                        if (o[this.name]) {
+                            if (!o[this.name].push) {
+                                o[this.name] = [o[this.name]];
+                            }
+                            o[this.name].push(this.value || '');
+                        } else {
+                            o[this.name] = this.value || '';
+                        }
+                    });
+                    return o;
+                };
+
+                var venues = {};
+                var currentData = {};
+                function getData(callback) {
+                    $.post('https://x985oqs018.execute-api.us-east-1.amazonaws.com/dev/data', currentData, function (data) {
+
+                        var totalTime = 0;
+                        data = JSON.parse(data);
+                        if(Object.keys(venues).length === 0 && venues.constructor === Object) {
+                            $("#desclist").prop("disabled", true).empty();
+                            $("#rolelist").prop("disabled", true).empty();
+
+
+                            for(var x = 0; x < data.length; x++) {
+                                var descriptions = venues[data[x].venue];
+                                if( descriptions === undefined )  descriptions = {};
+                                var roles = descriptions[data[x].role];
+                                if( roles === undefined ) roles = {};
+                                roles[data[x].role] = "";
+                                descriptions[data[x].description] = roles;
+                                venues[data[x].venue] = descriptions;
+                            }
+
+                            popLists("venuelist", venues);
+                        }
+
+                        for(var x = 0; x < data.length; x++) {
+                            //Calulate time for the shift
+                            totalTime += moment(data[x].end).diff(moment(data[x].start)) * data[x].svs;
+                        }
+
+                        var duration = moment.duration(totalTime);
+
+                        $("#hoursTotal").text(Math.round(duration.asHours()));
+                        $("#svsTotal").text(Math.round(duration.asHours() / 25));
+
+                        callback(data);
+                    });
+                }
+
+                function popLists (list, obj) {
+                    var arr = $.map(obj, function(index, value) {
+                        return [value];
+                    });
+                    arr.sort();
+                    $.each(arr, function(index, value){
+                        var link = $("<a href='#'>"+value+"</a>");
+                        var li = $('<li>').on({
+                            click: function (e) {
+                                cascade(e);
+                            }
+                        }).append(link);
+                        $("#" + list).append(li);
+                    });
+
+                }
+                $("#mail").on({
+                    click: function(e) {
+
+                    }
+                });
+                $("#csv").on({
+                    click: function(e) {
+                        window.location.href = "https://x985oqs018.execute-api.us-east-1.amazonaws.com/dev/csv";
+                    }
+                });
+
+                $('#calendar').fullCalendar({
+                    defaultDate: "2016-07-22",
+                    defaultView: 'sigweek',
+                    header: {
+                        right: 'sigweek,agendaDay prev,next'
+                    },
+                    views: {
+                        sigweek: {
+                            type: 'agendaWeek',
+                            duration: { days: 8 },
+                            minTime: "07:00:00",
+                            maxTime: "21:00:00"
+                        },
+                        agendaDay: {
+                            minTime: "07:00:00",
+                            maxTime: "21:00:00"
+                        }
+                    },
+                    events: function(start, end, timezone, callback) {
+                        getData(callback);
+                    },
+                    eventClick: function(calEvent, jsEvent, view) {
+
+                        shiftDialog(calEvent);
+                        console.log(calEvent);
+
+                    }
+                });
+
+            });
+        </script>
+    </head>
+    <body>
+        <div class='uk-width-1-1' style='height:80px;'>
+            <!--<div class='uk-float-right uk-margin'>
+                <button id='mail' class='uk-button'>Mail</button>
+            </div>-->
+            <div class='uk-float-right uk-margin'>
+                <button id='csv' class='uk-button'><i class="uk-icon-download"></i></button>
+            </div>
+            <div class='uk-float-left'>
+                <button id='newShift' class='uk-button'>New Shift </button>
+                <div class="uk-button-dropdown" data-uk-dropdown="" aria-haspopup="true" aria-expanded="false">
+                    <button class="uk-button">Venues <i class="uk-icon-caret-down"></i></button>
+                    <div class="uk-dropdown uk-dropdown-small uk-dropdown-bottom" style="top: 30px; left: 0px;">
+                        <ul id="venuelist" class="uk-nav uk-nav-dropdown"></ul>
+                    </div>
+                </div>
+                <div class="uk-button-dropdown" data-uk-dropdown="" aria-haspopup="true" aria-expanded="false">
+                    <button class="uk-button">Descriptions <i class="uk-icon-caret-down"></i></button>
+                    <div class="uk-dropdown uk-dropdown-small uk-dropdown-bottom" style="top: 30px; left: 0px;">
+                        <ul id="desclist" class="uk-nav uk-nav-dropdown"></ul>
+                    </div>
+                </div>
+                <div class="uk-button-dropdown" data-uk-dropdown="" aria-haspopup="true" aria-expanded="false">
+                    <button class="uk-button">Roles <i class="uk-icon-caret-down"></i></button>
+                    <div class="uk-dropdown uk-dropdown-small uk-dropdown-bottom" style="top: 30px; left: 0px;">
+                        <ul id="rolelist" class="uk-nav uk-nav-dropdown"></ul>
+                    </div>
+                </div>
+                <div>
+                    Total # Hours <span id="hoursTotal"></span> and <span id="svsTotal"></span>
+                </div>
+            </div>
+        </div>
+        <div class='uk-height-1-1'>
+            <div id='calendar'></div>
+        </div>
+        <div id="dialog" class="uk-form" title="My dialog" style="display:none">
+            <form>
+                <fieldset>
+                    <div class="uk-form-row">
+                        <label for="Id">Title</label>
+                        <input type="text" name="title" id="title" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <label for="Id">Desc</label>
+                        <input type="text" name="desc" id="desc" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <label for="role">Role</label>
+                        <input type="text" name="role" id="role" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <label for="chair">Chair</label>
+                        <input type="text" name="chair" id="chair" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <label for="Id">Day</label>
+                        <input type="text" name="day" id="day" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <label for="Id">Start</label>
+                        <input type="text" name="start" id="start" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <label for="Id">End</label>
+                        <input type="text" name="end" id="end" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <label for="sv">SVs</label>
+                        <input type="text" name="end" id="sv" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <label for="special">Special?</label>
+                        <input type="checkbox" name="special" id="special" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <label for="notified">Notified?</label>
+                        <input type="checkbox" name="notified" id="notified" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <label for="verified">Verified?</label>
+                        <input type="checkbox" name="verified" id="verified" class="text ui-widget-content ui-corner-all">
+                    </div>
+                    <div class="uk-form-row">
+                        <button id="delete" class="uk-button uk-align-left">Delete</button>
+                        <button id="submit" class="uk-button uk-align-right">Submit</button>
+                    </div>
+                </fieldset>
+            </form>
+        </div>
+    </body>
+</html>

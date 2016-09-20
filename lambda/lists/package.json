@@ -1,0 +1,17 @@
+{
+  "name": "list-shift",
+  "handler": "handler",
+  "role": "arn:aws:iam::037186311322:role/lambda_dynamo",
+  "version": "1.0.0",
+  "memory": 128,
+  "description": "Lists shift",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.4.1"
+  }
+}
